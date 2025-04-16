@@ -1,13 +1,17 @@
-const express = require('express')
-const cors = require('cors')
-const mongoose = require('mongoose')
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
 
-const app=express()
-app.use(cors())
-app.use(express.json())
+const app = express();
 
-const PORT = process.env.PORT || 8080
+// Middleware
+app.use(cors());
+app.use(express.json());
 
+const PORT = process.env.PORT || 8080;
+
+// Schema & Model
 const schemaData = mongoose.Schema({
     title: String,
     before_thought: { type: String, default: "" },
@@ -18,52 +22,64 @@ const schemaData = mongoose.Schema({
     isCompleted: { type: Boolean, default: false }
 }, {
     timestamps: true
-})
+});
 
-const booksModel = mongoose.model("books",schemaData)
+const booksModel = mongoose.model("books", schemaData);
 
-//read
-app.get("/",async(req,res)=>{
-    const data = await booksModel.find({})
-    res.json({success:true,data:data})
-})
+// Routes
 
+// Read all books
+app.get("/", async (req, res) => {
+    try {
+        const data = await booksModel.find({});
+        res.json({ success: true, data });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Failed to fetch data", error: err.message });
+    }
+});
 
-//create data or save data in mongodb
-app.post("/create",async(req,res)=>{
-    console.log(req.body)
-    const data=new booksModel(req.body)
-    await data.save()
-    res.send({success:true,message:"data saved successfully",data:data})
-})
+// Create a new book
+app.post("/create", async (req, res) => {
+    try {
+        const data = new booksModel(req.body);
+        await data.save();
+        res.send({ success: true, message: "Data saved successfully", data });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Failed to create data", error: err.message });
+    }
+});
 
+// Update a book
+app.put("/update/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        const updatedData = await booksModel.updateOne({ _id: id }, req.body);
+        res.send({ success: true, message: "Data updated successfully", data: updatedData });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Failed to update data", error: err.message });
+    }
+});
 
-//update data
-app.put("/update/:id",async(req,res)=>{
-    console.log(req.body)
-    const {...rest}=req.body
-    const id=req.params.id
-    // console.log("data")
-    const data=await booksModel.updateOne({_id:id},rest)
-    console.log(data)
-    res.send({success:true,message:"data updated successfully",data:data})
-})
+// Delete a book
+app.delete("/delete/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        const deletedData = await booksModel.deleteOne({ _id: id });
+        res.send({ success: true, message: "Data deleted successfully", data: deletedData });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Failed to delete data", error: err.message });
+    }
+});
 
-
-//delete
-app.delete("/delete/:id",async(req,res)=>{
-    const id = req.params.id
-    console.log(id)
-    const data=await booksModel.deleteOne({_id:id})
-    res.send({success:true,message:"data deleted successfully",data:data})
-})
-
+// DB Connection and Server Start
 mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
 .then(() => {
-    console.log("Connected to DB")
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+    console.log("✅ Connected to MongoDB");
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 })
-.catch((err) => console.log(err))
+.catch((err) => {
+    console.error("❌ MongoDB connection error:", err.message);
+});
